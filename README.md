@@ -5,7 +5,8 @@
 All six problems, each self-contained in its own folder with its own README,
 tests and run instructions.
 
-**Live demo:** [s5tech.duelcode.online](https://s5tech.duelcode.online) (Problem 2)
+**Live:** [s5tech.duelcode.online](https://s5tech.duelcode.online) (Problem 2 — swap app) ·
+[api.duelcode.online/docs](https://api.duelcode.online/docs) (Problem 5 — API)
 
 | # | Problem | Deliverable | Tests |
 |---|---|---|---|
@@ -13,7 +14,7 @@ tests and run instructions.
 | 2 | [Fancy Form](./src/problem2) | Currency swap app — Vite + React 19 + TS + Tailwind 4 · **[live demo](https://s5tech.duelcode.online)** | 95 |
 | 3 | [Messy React](./src/problem3) | 24 findings + refactored component | 29 |
 | 4 | [Three ways to sum to n](./src/problem4) | 3 TypeScript implementations + complexity analysis | 58 |
-| 5 | [A Crude Server](./src/problem5) | Express 5 + TypeScript + Prisma CRUD service | 55 |
+| 5 | [A Crude Server](./src/problem5) | Express 5 + TypeScript + Prisma CRUD service · **[live API](https://api.duelcode.online/docs)** | 55 |
 | 6 | [Architecture](./src/problem6) | Live scoreboard module specification + diagrams | — |
 
 **302 tests, all passing.** Every folder runs with `npm install && npm test`.
@@ -40,7 +41,7 @@ the wrong wallets with blank amount columns. Each fix carries a test that fails
 against the original behaviour — including the performance claim.
 
 **Problem 5** — swap orders, chosen to line up with Problem 2 so the submission
-reads as one system. Tests run against a real database rather than a mocked ORM.
+reads as one system. **Running at [api.duelcode.online/docs](https://api.duelcode.online/docs)**. Tests run against a real database rather than a mocked ORM.
 OpenAPI docs are generated from the same Zod schemas the routes validate with.
 
 **Problem 6** — a scoreboard module spec written for a team to implement, with
