@@ -4,7 +4,7 @@ A currency swap form built with **Vite + React 19 + TypeScript + Tailwind 4**.
 
 **Live: [s5tech.duelcode.online](https://s5tech.duelcode.online)**
 
-- **101 tests**, including a full user-journey suite driven through the real DOM
+- **105 tests**, including a full user-journey suite driven through the real DOM
 - Real data: prices from `interview.switcheo.com`, icons from `Switcheo/token-icons`
 - Light and dark themes, responsive to 320px, keyboard- and screen-reader-navigable
 - Exact decimal arithmetic — no `parseFloat` touches a monetary amount anywhere
@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5173
 ```
 
 ```bash
-npm test           # vitest — 101 tests
+npm test           # vitest — 105 tests
 npm run typecheck  # tsc -b, strict + noUncheckedIndexedAccess
 npm run lint       # oxlint — clean
 npm run build      # production build
@@ -147,6 +147,13 @@ server's figures, not the client's.
 What is still simulated: balances, and settlement itself. No funds move. The
 footer says so — the API call is real, the on-chain leg is not.
 
+**The amount is canonicalised before it goes on the wire.** The input accepts
+the half-finished forms real typing produces — `.5`, `1.` — because rejecting
+them mid-keystroke makes the field feel broken. The API's decimal format requires
+a digit on each side of the point, so `.5` is sent as `0.5`. Without that, the
+form quoted happily and then failed on submit with a validation error that looked
+like a server fault. Found in production, from a 422 in the service's logs.
+
 **The rate submitted is the post-fee rate.** The server derives
 `toAmount = fromAmount * rate`, so sending the raw price ratio recorded an amount
 larger than the one the user agreed to — the receipt contradicted the quote it
@@ -180,12 +187,12 @@ do.
 ## Testing
 
 ```
-✓ src/lib/decimal.test.ts               (27)
+✓ src/lib/decimal.test.ts               (30)
 ✓ src/lib/tokens.test.ts                (12)
 ✓ src/lib/swap.test.ts                  (17)
 ✓ src/features/swap/swap-schema.test.ts (19)
-✓ src/features/swap/SwapCard.test.tsx   (26)
-  101 passed
+✓ src/features/swap/SwapCard.test.tsx   (27)
+  105 passed
 ```
 
 Network calls — both the price feed and the swap API — are intercepted with

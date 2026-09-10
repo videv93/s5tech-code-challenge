@@ -79,4 +79,15 @@ describe('normalise', () => {
     expect(normalise('01.500')).toBe('1.5');
     expect(normalise('0.10')).toBe('0.1');
   });
+
+  // The input accepts these while the user is mid-keystroke, but the API's
+  // decimal format requires a digit on both sides of the point. Canonicalising
+  // here is what stops a valid-looking quote failing on submit.
+  it.each([
+    ['.5', '0.5'],
+    ['1.', '1'],
+    ['.05', '0.05'],
+  ])('canonicalises the half-typed form %s to %s', (input, expected) => {
+    expect(normalise(input)).toBe(expected);
+  });
 });

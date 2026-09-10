@@ -271,6 +271,33 @@ describe('submitting', () => {
     expect(String(submitted['rate'])).not.toMatch(/e/i);
   }, 10_000);
 
+  // The regression this pins: typing ".5" quoted fine and then failed on submit
+  // with a 422, because the API requires a digit before the decimal point.
+  it('canonicalises a half-typed amount before sending it', async () => {
+    let submitted: Record<string, unknown> = {};
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/swap-orders`, async ({ request }) => {
+        submitted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(swapOrderResponse(submitted as Record<string, string>), {
+          status: 201,
+        });
+      }),
+    );
+
+    const { user } = await renderReady();
+    const input = screen.getByLabelText(/you pay amount/i);
+    await user.type(input, '.5');
+    // The field keeps what the user typed…
+    expect(input).toHaveValue('.5');
+
+    await user.click(await screen.findByRole('button', { name: /swap eth for usdc/i }));
+    await screen.findByText(/order submitted/i, {}, { timeout: 5000 });
+
+    // …but the wire gets the canonical form the API will accept.
+    expect(submitted['fromAmount']).toBe('0.5');
+    expect(String(submitted['fromAmount'])).toMatch(/^\d+(\.\d{1,18})?$/);
+  }, 10_000);
+
   it('shows the order id from the response, so the receipt is checkable', async () => {
     const { user } = await renderReady();
     await user.type(screen.getByLabelText(/you pay amount/i), '1');

@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { createSwapOrder, type SwapOrder } from '@/lib/api';
+import { ApiError, createSwapOrder, type SwapOrder } from '@/lib/api';
+import { normalise } from '@/lib/decimal';
 import { FEE_RATE } from '@/lib/swap';
 import type { Token } from '@/lib/tokens';
 import { walletAddress } from '@/lib/wallet';
@@ -30,6 +31,21 @@ export function useSwapExecution(onSuccess: (swap: CompletedSwap) => void) {
   return useMutation<CompletedSwap, Error, SwapRequest>({
     mutationFn: async (request) => {
       /**
+       * The amount is canonicalised before it goes on the wire.
+       *
+       * The input deliberately accepts the half-finished forms real typing
+       * produces — `.5`, `1.` — because rejecting them mid-keystroke makes the
+       * field feel broken. The API's decimal format requires a digit on each
+       * side of the point, so `.5` reaches it as `0.5`. Without this the form
+       * quotes happily and then fails on submit with a validation error that
+       * looks like a server fault.
+       */
+      const fromAmount = normalise(request.amountIn, 18);
+      if (fromAmount === null) {
+        throw new ApiError('INVALID_AMOUNT', 'That amount could not be read as a number.', 0);
+      }
+
+      /**
        * The *effective* rate is submitted, not the raw price ratio. The server
        * derives `toAmount = fromAmount * rate`, so sending the pre-fee rate
        * would record an amount larger than the one the user agreed to — the
@@ -38,7 +54,7 @@ export function useSwapExecution(onSuccess: (swap: CompletedSwap) => void) {
       const order: SwapOrder = await createSwapOrder({
         fromCurrency: request.from.symbol,
         toCurrency: request.to.symbol,
-        fromAmount: request.amountIn,
+        fromAmount,
         rate: request.effectiveRate,
         walletAddress,
         note: `Quoted at 1 ${request.from.symbol} = ${request.grossRate} ${request.to.symbol}, less ${(FEE_RATE * 100).toFixed(1)}% fee`,
