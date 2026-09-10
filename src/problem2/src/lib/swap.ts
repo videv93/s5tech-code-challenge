@@ -1,10 +1,17 @@
 import { divide, multiply } from './decimal';
+import { toDecimalString } from './api';
 import type { Token } from './tokens';
 
 /** Simulated network fee, as a fraction of the input amount. */
 export const FEE_RATE = 0.003; // 0.3%
 
 export interface Quote {
+  /**
+   * Destination units per source unit *after* the fee — the rate actually
+   * applied. `netOut === fromAmount * effectiveRate` by construction, which is
+   * what lets the server derive the same figure the user was quoted.
+   */
+  effectiveRate: string;
   /** Amount received before fees, exact. */
   grossOut: string;
   /** Amount received after fees — what the user actually gets. */
@@ -42,18 +49,34 @@ export function computeQuote(
   const rate = from.price / to.price;
   if (!Number.isFinite(rate) || rate <= 0) return null;
 
+  const rateString = toDecimalString(rate);
+  if (rateString === null) return null;
+
   // Exact string maths, not parseFloat — see lib/decimal.ts for why.
-  const grossOut = multiply(amount, String(rate), 8);
+  const grossOut = multiply(amount, rateString, 8);
   if (grossOut === null) return null;
 
-  const feeAmount = multiply(grossOut, String(FEE_RATE), 8) ?? '0';
-  const netOut = subtract(grossOut, feeAmount);
+  /**
+   * The net amount is derived from a single effective rate rather than as
+   * "gross minus fee". Both give the same number here, but only this form can be
+   * handed to a server that derives `toAmount = fromAmount * rate` — and the
+   * order record has to say what the user was actually quoted, not a
+   * pre-fee figure they never agreed to.
+   */
+  const effectiveRate = toDecimalString(rate * (1 - FEE_RATE));
+  if (effectiveRate === null) return null;
+
+  const netOut = multiply(amount, effectiveRate, 8);
+  if (netOut === null) return null;
+
+  const feeAmount = subtract(grossOut, netOut);
   const minimumReceived = multiply(netOut, String(1 - slippagePercent / 100), 8) ?? netOut;
 
   const fromUsd = Number(amount) * from.price;
   const toUsd = Number(netOut) * to.price;
 
   return {
+    effectiveRate,
     grossOut,
     netOut,
     feeAmount,

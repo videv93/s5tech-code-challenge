@@ -134,6 +134,8 @@ export function SwapCard() {
       amountIn: values.amount,
       amountOut: quote.netOut,
       usdValue: quote.fromUsd,
+      effectiveRate: quote.effectiveRate,
+      grossRate: String(quote.rate),
     });
   });
 

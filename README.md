@@ -11,13 +11,13 @@ tests and run instructions.
 | # | Problem | Deliverable | Tests |
 |---|---|---|---|
 | 1 | [Three ways to sum to n](./src/problem1) | 3 JavaScript implementations | 65 |
-| 2 | [Fancy Form](./src/problem2) | Currency swap app — Vite + React 19 + TS + Tailwind 4 · **[live demo](https://s5tech.duelcode.online)** | 98 |
+| 2 | [Fancy Form](./src/problem2) | Currency swap app — Vite + React 19 + TS + Tailwind 4 · **[live demo](https://s5tech.duelcode.online)** | 101 |
 | 3 | [Messy React](./src/problem3) | 24 findings + refactored component | 29 |
 | 4 | [Three ways to sum to n](./src/problem4) | 3 TypeScript implementations + complexity analysis | 58 |
 | 5 | [A Crude Server](./src/problem5) | Express 5 + TypeScript + Prisma CRUD service · **[live API](https://api.duelcode.online/docs)** | 55 |
 | 6 | [Architecture](./src/problem6) | Live scoreboard module specification + diagrams | — |
 
-**305 tests, all passing.** Every folder runs with `npm install && npm test`.
+**308 tests, all passing.** Every folder runs with `npm install && npm test`.
 
 ---
 

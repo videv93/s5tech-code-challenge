@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { ApiError, createSwapOrder, toDecimalString, type SwapOrder } from '@/lib/api';
+import { createSwapOrder, type SwapOrder } from '@/lib/api';
+import { FEE_RATE } from '@/lib/swap';
 import type { Token } from '@/lib/tokens';
 import { walletAddress } from '@/lib/wallet';
 import type { CompletedSwap } from './SwapReceipt';
@@ -10,6 +11,10 @@ export interface SwapRequest {
   amountIn: string;
   amountOut: string;
   usdValue: number;
+  /** The post-fee rate the user was quoted at. */
+  effectiveRate: string;
+  /** Pre-fee rate, recorded on the order for auditability. */
+  grossRate: string;
 }
 
 /**
@@ -24,22 +29,19 @@ export interface SwapRequest {
 export function useSwapExecution(onSuccess: (swap: CompletedSwap) => void) {
   return useMutation<CompletedSwap, Error, SwapRequest>({
     mutationFn: async (request) => {
-      const rate = toDecimalString(request.from.price / request.to.price);
-      if (rate === null) {
-        throw new ApiError(
-          'UNQUOTABLE_PAIR',
-          'This pair cannot be quoted at the current prices.',
-          0,
-        );
-      }
-
+      /**
+       * The *effective* rate is submitted, not the raw price ratio. The server
+       * derives `toAmount = fromAmount * rate`, so sending the pre-fee rate
+       * would record an amount larger than the one the user agreed to — the
+       * receipt would then contradict the quote it was printed from.
+       */
       const order: SwapOrder = await createSwapOrder({
         fromCurrency: request.from.symbol,
         toCurrency: request.to.symbol,
         fromAmount: request.amountIn,
-        rate,
+        rate: request.effectiveRate,
         walletAddress,
-        note: `Swap from the web client`,
+        note: `Quoted at 1 ${request.from.symbol} = ${request.grossRate} ${request.to.symbol}, less ${(FEE_RATE * 100).toFixed(1)}% fee`,
       });
 
       return {

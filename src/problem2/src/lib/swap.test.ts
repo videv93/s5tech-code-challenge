@@ -77,3 +77,30 @@ describe('percentOfBalance', () => {
     expect(percentOfBalance('0.000012345678', 100)).toBe('0.000012345678');
   });
 });
+
+describe('the rate submitted to the API', () => {
+  // The bug this pins: the client quoted a net-of-fee amount while the server
+  // derived toAmount from the pre-fee rate, so the stored order said the user
+  // would receive more than the receipt they agreed to.
+  it('reproduces the quoted net amount exactly when the server applies it', () => {
+    const quote = computeQuote('0.75', ETH, USDC, 0.5)!;
+
+    // Exactly what the server does: toAmount = fromAmount * rate.
+    const serverDerived = Number('0.75') * Number(quote.effectiveRate);
+
+    expect(serverDerived).toBeCloseTo(Number(quote.netOut), 6);
+  });
+
+  it('is the price ratio less the fee, not the raw ratio', () => {
+    const quote = computeQuote('1', ETH, USDC, 0.5)!;
+    expect(Number(quote.effectiveRate)).toBeCloseTo(quote.rate * (1 - FEE_RATE), 8);
+    expect(Number(quote.effectiveRate)).toBeLessThan(quote.rate);
+  });
+
+  it('never uses exponential notation, which the API rejects', () => {
+    // A cheap token into an expensive one: rate ≈ 1.6e-7.
+    const quote = computeQuote('1000', token('SWTH', 0.00414), token('WBTC', 26002.82), 0.5)!;
+    expect(quote.effectiveRate).not.toMatch(/e/i);
+    expect(Number(quote.effectiveRate)).toBeGreaterThan(0);
+  });
+});

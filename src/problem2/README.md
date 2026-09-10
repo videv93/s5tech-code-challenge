@@ -4,7 +4,7 @@ A currency swap form built with **Vite + React 19 + TypeScript + Tailwind 4**.
 
 **Live: [s5tech.duelcode.online](https://s5tech.duelcode.online)**
 
-- **98 tests**, including a full user-journey suite driven through the real DOM
+- **101 tests**, including a full user-journey suite driven through the real DOM
 - Real data: prices from `interview.switcheo.com`, icons from `Switcheo/token-icons`
 - Light and dark themes, responsive to 320px, keyboard- and screen-reader-navigable
 - Exact decimal arithmetic — no `parseFloat` touches a monetary amount anywhere
@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5173
 ```
 
 ```bash
-npm test           # vitest — 98 tests
+npm test           # vitest — 101 tests
 npm run typecheck  # tsc -b, strict + noUncheckedIndexedAccess
 npm run lint       # oxlint — clean
 npm run build      # production build
@@ -147,7 +147,15 @@ server's figures, not the client's.
 What is still simulated: balances, and settlement itself. No funds move. The
 footer says so — the API call is real, the on-chain leg is not.
 
-One trap this integration surfaced, worth naming because it only bites on
+**The rate submitted is the post-fee rate.** The server derives
+`toAmount = fromAmount * rate`, so sending the raw price ratio recorded an amount
+larger than the one the user agreed to — the receipt contradicted the quote it
+was printed from. The quote now derives `netOut` from a single effective rate
+rather than as "gross minus fee", so the client's figure and the server's are the
+same calculation. Caught by submitting a real swap and reading the row back, not
+by a unit test; there is now a test that pins it.
+
+One further trap, worth naming because it only bites on
 specific pairs: `rate` is a quotient of two prices, and `String(0.000000159)`
 produces `"1.59e-7"`, which the API's decimal validator rejects. A swap from a
 cheap token to an expensive one (SWTH → WBTC, rate ≈ 1.6e-7) would have failed
@@ -174,10 +182,10 @@ do.
 ```
 ✓ src/lib/decimal.test.ts               (27)
 ✓ src/lib/tokens.test.ts                (12)
-✓ src/lib/swap.test.ts                  (14)
+✓ src/lib/swap.test.ts                  (17)
 ✓ src/features/swap/swap-schema.test.ts (19)
 ✓ src/features/swap/SwapCard.test.tsx   (26)
-  98 passed
+  101 passed
 ```
 
 Network calls — both the price feed and the swap API — are intercepted with
