@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first — no point burning minutes
+# verifying a commit that has already been superseded. Deploys are excluded from
+# cancellation below, because interrupting one mid-upload is how you get a
+# half-published site.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.project }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Every project reports independently: one failure should not hide the
+      # state of the other four.
+      fail-fast: false
+      matrix:
+        project: [problem1, problem2, problem3, problem4, problem5]
+
+    defaults:
+      run:
+        working-directory: src/${{ matrix.project }}
+
+    env:
+      # Problem 5 validates its configuration at boot and its postinstall hook
+      # runs `prisma generate`, both of which want a connection string. Harmless
+      # for the other four.
+      DATABASE_URL: file:./ci.db
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          # Each project pins its own dependencies; there is no root install, so
+          # the cache key has to follow the project's own lockfile.
+          cache-dependency-path: src/${{ matrix.project }}/package-lock.json
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile and
+      # fails if the two have drifted, which is the property you want in CI.
+      - name: Install
+        run: npm ci
+
+      # `--if-present` keeps this one matrix definition honest across five
+      # projects with different toolchains — problem1 has no typecheck, only
+      # problem2 lints, and neither of those is a reason to special-case a job.
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build --if-present
+
+  deploy:
+    name: Deploy swap app
+    runs-on: ubuntu-latest
+    # The gate that makes this CD rather than "push and hope": a red suite on any
+    # project blocks the deploy.
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://s5tech.duelcode.online
+
+    # Deliberately not cancel-in-progress: two overlapping deploys are worse than
+    # one queued behind another.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    defaults:
+      run:
+        working-directory: src/problem2
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/problem2/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          # The account id lives in wrangler.jsonc — it identifies the account
+          # but grants nothing. The API token is the only real secret here.
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: src/problem2
+          # The build already ran above, so this only uploads.
+          command: deploy
+
+      - name: Smoke test the deployed site
+        # A 200 from the CDN is not proof the app works, but a non-200 or a
+        # missing bundle is proof it does not — worth 10 seconds to catch a
+        # broken publish before a reviewer does.
+        run: |
+          sleep 10
+          status=$(curl -sS -o /tmp/index.html -w '%{http_code}' https://s5tech.duelcode.online/)
+          echo "index.html -> $status"
+          test "$status" = "200"
+          grep -q '<title>Swapper' /tmp/index.html
+          asset=$(grep -oE '/assets/[^"]+\.js' /tmp/index.html | head -1)
+          echo "bundle -> $asset"
+          test -n "$asset"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "https://s5tech.duelcode.online$asset")" = "200"

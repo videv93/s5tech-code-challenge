@@ -3,6 +3,10 @@
   "name": "s5tech-swap",
   "compatibility_date": "2026-09-10",
 
+  // Pinned so a CI deploy targets the same account as a local one. This is an
+  // identifier, not a credential — the API token is the secret.
+  "account_id": "a018b7d41c0481018fd2f04467240666",
+
   // Static-assets-only Worker: no server code, so Cloudflare serves the built
   // SPA straight from its edge cache. There is no `main` entry point because
   // this app has no backend of its own — the price feed is a third-party URL
