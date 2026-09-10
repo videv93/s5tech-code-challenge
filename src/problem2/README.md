@@ -4,10 +4,11 @@ A currency swap form built with **Vite + React 19 + TypeScript + Tailwind 4**.
 
 **Live: [s5tech.duelcode.online](https://s5tech.duelcode.online)**
 
-- **95 tests**, including a full user-journey suite driven through the real DOM
+- **98 tests**, including a full user-journey suite driven through the real DOM
 - Real data: prices from `interview.switcheo.com`, icons from `Switcheo/token-icons`
 - Light and dark themes, responsive to 320px, keyboard- and screen-reader-navigable
 - Exact decimal arithmetic — no `parseFloat` touches a monetary amount anywhere
+- **Submits real orders to the [Problem 5 API](https://api.duelcode.online/docs)** — the receipt links to the record
 
 | Light | Dark |
 |---|---|
@@ -22,7 +23,7 @@ npm run dev        # http://localhost:5173
 ```
 
 ```bash
-npm test           # vitest — 95 tests
+npm test           # vitest — 98 tests
 npm run typecheck  # tsc -b, strict + noUncheckedIndexedAccess
 npm run lint       # oxlint — clean
 npm run build      # production build
@@ -130,11 +131,32 @@ The retry *policy* lives on the QueryClient rather than in the hook, so tests ca
 render against a client with retries off — a hook-level `retry: 2` overrides the
 client and turns every error-path assertion into a multi-second timeout.
 
-### The mocked backend fails ~12% of the time
+### The backend is real, and the boundary is stated
 
-Deliberate. A form that has only ever been seen succeeding has an untested error
-state, and that error state is what a user meets on their worst day. Both
-outcomes are pinned in the suite by stubbing `Math.random`.
+The brief permits mocking the backend. Since Problem 5 is a CRUD service over the
+same domain, the form submits to it instead: a completed swap is a row in that
+database, and the receipt links to `GET /api/v1/swap-orders/:id` so it can be
+checked rather than taken on trust.
+
+The client sends `fromCurrency`, `toCurrency`, `fromAmount`, `rate` and
+`walletAddress` — **not** `toAmount`, which the server derives. Sending all three
+would let the client submit an internally inconsistent order, and there would be
+no way to tell afterwards which field was wrong. The receipt then shows the
+server's figures, not the client's.
+
+What is still simulated: balances, and settlement itself. No funds move. The
+footer says so — the API call is real, the on-chain leg is not.
+
+One trap this integration surfaced, worth naming because it only bites on
+specific pairs: `rate` is a quotient of two prices, and `String(0.000000159)`
+produces `"1.59e-7"`, which the API's decimal validator rejects. A swap from a
+cheap token to an expensive one (SWTH → WBTC, rate ≈ 1.6e-7) would have failed
+with a 422 that looked like a server bug. `toDecimalString` formats without an
+exponent, and a test asserts the submitted rate never contains one.
+
+Failures surface the service's own message and correlation id; an unreachable
+service reports "your funds were not moved" rather than "Failed to fetch".
+Neither clears the form, so the user can correct and resubmit.
 
 ### Accessibility is not a pass at the end
 
@@ -154,11 +176,12 @@ do.
 ✓ src/lib/tokens.test.ts                (12)
 ✓ src/lib/swap.test.ts                  (14)
 ✓ src/features/swap/swap-schema.test.ts (19)
-✓ src/features/swap/SwapCard.test.tsx   (23)
-  95 passed
+✓ src/features/swap/SwapCard.test.tsx   (26)
+  98 passed
 ```
 
-Network calls are intercepted with **MSW**, not by mocking `fetch`. Mocking fetch
+Network calls — both the price feed and the swap API — are intercepted with
+**MSW**, not by mocking `fetch`. Mocking fetch
 tests that the mock agrees with the code; intercepting at the network layer
 exercises the real query function, the real Zod parsing and the real error paths.
 The fixture deliberately keeps the awkward parts of the live feed — a duplicated
