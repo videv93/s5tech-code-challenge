@@ -16,6 +16,10 @@
     "noEmit": true,
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "vitest.config.ts"],
+  // vitest.setup.ts must be included: it imports
+  // `@testing-library/jest-dom/vitest`, and that import is what augments
+  // Vitest's Assertion type with toBeInTheDocument and friends. Leaving it out
+  // typechecks the tests without the matchers they actually use.
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts"],
   "exclude": ["src/messy.original.tsx"]
 }
