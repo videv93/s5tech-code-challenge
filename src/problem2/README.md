@@ -2,6 +2,8 @@
 
 A currency swap form built with **Vite + React 19 + TypeScript + Tailwind 4**.
 
+**Live: [s5tech.duelcode.online](https://s5tech.duelcode.online)**
+
 - **95 tests**, including a full user-journey suite driven through the real DOM
 - Real data: prices from `interview.switcheo.com`, icons from `Switcheo/token-icons`
 - Light and dark themes, responsive to 320px, keyboard- and screen-reader-navigable
@@ -24,7 +26,25 @@ npm test           # vitest — 95 tests
 npm run typecheck  # tsc -b, strict + noUncheckedIndexedAccess
 npm run lint       # oxlint — clean
 npm run build      # production build
+npm run deploy     # build + deploy to Cloudflare (see below)
 ```
+
+## Deployment
+
+Deployed to Cloudflare as an **assets-only Worker** — no server code, since the
+price feed is a third-party URL the browser fetches directly, so the whole app
+is static files served from the edge.
+
+```bash
+wrangler login       # once, per machine
+npm run deploy       # tsc -b && vite build && wrangler deploy
+```
+
+[`wrangler.jsonc`](./wrangler.jsonc) declares the custom domain, so the DNS
+record in the `duelcode.online` zone is managed by the deploy rather than by
+hand. `not_found_handling: "single-page-application"` makes a deep link or a
+refresh on any route return `index.html` instead of a 404 — the router is on the
+client.
 
 > **Bonus claimed:** built with [Vite](https://vite.dev/), as the brief suggests.
 

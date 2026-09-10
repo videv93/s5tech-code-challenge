@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "lint": "oxlint src"
+    "lint": "oxlint src",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:preview": "npm run build && wrangler versions upload"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -42,7 +44,8 @@
     "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.130.0"
   },
   "description": "Problem 2 — a currency swap form built with Vite, React 19, TypeScript and Tailwind 4."
 }

@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "s5tech-swap",
+  "compatibility_date": "2026-09-10",
+
+  // Static-assets-only Worker: no server code, so Cloudflare serves the built
+  // SPA straight from its edge cache. There is no `main` entry point because
+  // this app has no backend of its own — the price feed is a third-party URL
+  // fetched from the browser.
+  "assets": {
+    "directory": "./dist",
+    // Deep links and a refresh on any route must return index.html rather than
+    // a 404 — the router lives in the client.
+    "not_found_handling": "single-page-application"
+  },
+
+  // Binds the Worker to the subdomain and creates the DNS record in the
+  // duelcode.online zone.
+  "routes": [
+    {
+      "pattern": "s5tech.duelcode.online",
+      "custom_domain": true
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}

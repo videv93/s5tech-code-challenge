@@ -6,7 +6,7 @@ tests and run instructions.
 | # | Problem | Deliverable | Tests |
 |---|---|---|---|
 | 1 | [Three ways to sum to n](./src/problem1) | 3 JavaScript implementations | 65 |
-| 2 | [Fancy Form](./src/problem2) | Currency swap app — Vite + React 19 + TS + Tailwind 4 | 95 |
+| 2 | [Fancy Form](./src/problem2) | Currency swap app — Vite + React 19 + TS + Tailwind 4 · **[live demo](https://s5tech.duelcode.online)** | 95 |
 | 3 | [Messy React](./src/problem3) | 24 findings + refactored component | 29 |
 | 4 | [Three ways to sum to n](./src/problem4) | 3 TypeScript implementations + complexity analysis | 58 |
 | 5 | [A Crude Server](./src/problem5) | Express 5 + TypeScript + Prisma CRUD service | 55 |
@@ -27,7 +27,8 @@ declare their assumptions about negative input up front.
 two things the real data actually does wrong: duplicate currency entries, and
 icon filenames whose casing does not match the feed. Money never becomes a
 JavaScript number anywhere in the app.
-[Screenshots in the README.](./src/problem2#readme)
+**Running at [s5tech.duelcode.online](https://s5tech.duelcode.online)**; screenshots
+in [its README](./src/problem2#readme).
 
 **Problem 3** — the analysis is the deliverable. 24 findings, led by the fact
 that **the component as written crashes on mount**, and with that fixed renders
