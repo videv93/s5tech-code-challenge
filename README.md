@@ -1,7 +1,11 @@
 # 99Tech / S5 Tech — Code Challenge
 
+[![CI](https://github.com/videv93/s5tech-code-challenge/actions/workflows/ci.yml/badge.svg)](https://github.com/videv93/s5tech-code-challenge/actions/workflows/ci.yml)
+
 All six problems, each self-contained in its own folder with its own README,
 tests and run instructions.
+
+**Live demo:** [s5tech.duelcode.online](https://s5tech.duelcode.online) (Problem 2)
 
 | # | Problem | Deliverable | Tests |
 |---|---|---|---|
@@ -69,6 +73,28 @@ open src/problem6/README.md
 Each project pins its own dependencies; there is no shared root install.
 
 ---
+
+## CI/CD
+
+One workflow, [`.github/workflows/ci.yml`](./.github/workflows/ci.yml), with two
+jobs.
+
+**`verify`** runs a matrix over all five code projects — install from the
+lockfile, typecheck, lint, test, build. It uses
+`npm run <script> --if-present`, so a single job definition covers five
+different toolchains without special-casing: problem 1 has no typecheck, only
+problem 2 lints, and neither is a reason to fork the config. `fail-fast` is off
+so one red project cannot hide the state of the other four.
+
+**`deploy`** `needs: verify`, so a failing suite anywhere blocks publication,
+and only runs on a push to `main`. It is deliberately excluded from the
+concurrency cancellation that applies to CI — interrupting a deploy mid-upload
+is how a half-published site happens. After publishing it smoke-tests the real
+URL, because a 200 from the CDN is not by itself proof the app works.
+
+Deploys go to Cloudflare as an assets-only Worker; the custom domain is declared
+in [`wrangler.jsonc`](./src/problem2/wrangler.jsonc), so DNS is managed by the
+deploy rather than by hand.
 
 ## How I approached this
 
