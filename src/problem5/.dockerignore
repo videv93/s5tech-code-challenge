@@ -1,0 +1,9 @@
+node_modules
+dist
+src/db/generated
+*.db
+*.db-journal
+.env
+.git
+coverage
+prisma/migrations/**/*.md

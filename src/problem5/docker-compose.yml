@@ -1,32 +1,37 @@
-# Optional: brings up PostgreSQL for anyone who would rather not run on SQLite.
-# See the README's "Switching to PostgreSQL" section for the two file changes.
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: swap
-      POSTGRES_PASSWORD: swap
-      POSTGRES_DB: swap_orders
-    ports:
-      - '5432:5432'
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U swap']
-      interval: 5s
-      retries: 10
+# Mirrors what runs in production: the service on a loopback-only port, behind a
+# reverse proxy that terminates TLS, with the SQLite file on a named volume so a
+# redeploy does not take the data with it.
+#
+# The container migrates itself on start (see docker-entrypoint.sh), so a fresh
+# volume becomes a working database with no extra step.
 
+services:
   api:
     build: .
-    depends_on:
-      db:
-        condition: service_healthy
+    image: s5tech-api:latest
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://swap:swap@db:5432/swap_orders
       NODE_ENV: production
       PORT: 3000
+      DATABASE_URL: file:/data/prod.db
+      LOG_LEVEL: info
+      # Public demo: the browser origin is a different host, so CORS has to
+      # allow it explicitly rather than relying on the "*" default.
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+    volumes:
+      - api-data:/data
+    # Bound to loopback, never 0.0.0.0: the only way in is through the reverse
+    # proxy, so the service cannot be reached directly on the public interface.
     ports:
-      - '3000:3000'
+      - '127.0.0.1:${HOST_PORT:-3200}:3000'
+    healthcheck:
+      test:
+        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
 
 volumes:
-  pgdata:
+  api-data:

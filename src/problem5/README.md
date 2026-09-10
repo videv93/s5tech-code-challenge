@@ -57,7 +57,26 @@ model uses no SQLite-specific features, so moving to Postgres is two changes:
 2. `.env` → `DATABASE_URL="postgresql://swap:swap@localhost:5432/swap_orders"`
 
 then `npm i @prisma/adapter-pg`, swap the adapter in `src/db/client.ts`, and run
-`npm run db:migrate`. A `docker-compose.yml` is included to bring up the database.
+`npm run db:migrate`.
+
+### Running it in a container
+
+```bash
+docker compose up --build -d      # http://localhost:3200
+```
+
+The image is multi-stage: the runtime carries no compiler and no dev
+dependencies. It **migrates itself on start** (`prisma migrate deploy`, which is
+idempotent, so restarts are safe), runs as the non-root `node` user, and keeps
+the SQLite file on a named volume so a redeploy does not take the data with it.
+The port binds to `127.0.0.1` only — the way in is through a reverse proxy.
+
+Two things worth knowing about the image. It is built on `node:22-slim` rather
+than Alpine because `better-sqlite3` is a native addon with no musl prebuilds,
+and `npm rebuild better-sqlite3` is called explicitly because the install runs
+with `--ignore-scripts` (otherwise Prisma's postinstall tries to generate into a
+source tree the runtime stage does not have). Skip either and the container
+starts, then fails on its first query.
 
 ---
 
