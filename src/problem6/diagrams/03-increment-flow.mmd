@@ -1,0 +1,28 @@
+flowchart TD
+    A["POST /scores/increment"] --> B{"Session JWT valid?"}
+    B -->|no| E401["401 Unauthorized"]
+    B -->|yes| C{"Rate limit OK?"}
+    C -->|no| E429["429 Too Many Requests"]
+    C -->|yes| D{"Action token signature valid?"}
+    D -->|no| E403["403 Forbidden"]
+    D -->|yes| F{"Not expired?"}
+    F -->|no| E403
+    F -->|yes| G{"token.sub == session.userId?"}
+    G -->|no| E403b["403 — logged + alerted"]
+    G -->|yes| H{"Burn nonce in Redis<br/>SET jti NX EX ttl"}
+    H -->|"already exists"| E409["409 Conflict — replay"]
+    H -->|"burned"| I["BEGIN TRANSACTION"]
+    I --> J["INSERT score_event<br/>(unique on action_token_id)"]
+    J -->|"unique violation"| E409
+    J --> K["UPDATE users SET score = score + delta"]
+    K --> L["COMMIT"]
+    L --> M["ZADD Redis leaderboard"]
+    M --> N["PUBLISH scoreboard.updated"]
+    N --> O["200 OK"]
+
+    style E401 fill:#fdd,stroke:#c33
+    style E403 fill:#fdd,stroke:#c33
+    style E403b fill:#fdd,stroke:#c33
+    style E409 fill:#fe8,stroke:#c93
+    style E429 fill:#fe8,stroke:#c93
+    style O fill:#dfd,stroke:#3c3

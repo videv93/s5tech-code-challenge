@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph Client["Client (untrusted)"]
+        UI["Web app<br/>score board + action UI"]
+    end
+
+    subgraph Edge["Edge"]
+        LB["Load balancer<br/>TLS, sticky-free"]
+    end
+
+    subgraph API["API service"]
+        AUTH["Auth middleware<br/>verify session JWT"]
+        AC["Action Controller<br/>(existing feature)"]
+        SC["Scoreboard Controller"]
+        SVC["Scoreboard Service<br/>token verify · idempotency · state machine"]
+        PUB["Event publisher"]
+        SSE["SSE endpoint<br/>/scores/stream"]
+    end
+
+    subgraph Data["Data"]
+        PG[("PostgreSQL<br/>users · score_events")]
+        RD[("Redis<br/>ZSET leaderboard<br/>nonces · rate limits<br/>pub/sub")]
+    end
+
+    UI -->|"1 . POST /actions/start"| LB
+    LB --> AUTH
+    AUTH --> AC
+    AC -->|"2 . issue signed action token"| UI
+
+    UI -->|"3 . POST /scores/increment<br/>+ action token + Idempotency-Key"| LB
+    LB --> AUTH
+    AUTH --> SC
+    SC --> SVC
+    SVC <-->|"nonce check + burn"| RD
+    SVC -->|"4 . append score_event<br/>+ update score (one tx)"| PG
+    SVC -->|"5 . ZADD leaderboard"| RD
+    SVC --> PUB
+    PUB -->|"6 . publish scoreboard.updated"| RD
+    RD -.->|"fan-out to every instance"| SSE
+    SSE -.->|"7 . event: leaderboard"| UI
+
+    style Client fill:#fee,stroke:#c66
+    style Data fill:#eef,stroke:#66c

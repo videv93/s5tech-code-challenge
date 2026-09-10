@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant U as User B (scores)
+    participant I7 as API instance 7
+    participant R as Redis
+    participant I3 as API instance 3
+    participant V as Viewer (connected to I3)
+
+    U->>I7: POST /scores/increment
+    I7->>I7: verify, burn nonce, write tx
+    I7->>R: ZADD leaderboard 1410 userB
+    I7->>R: PUBLISH scoreboard.updated
+    R-->>I3: scoreboard.updated
+    R-->>I7: scoreboard.updated
+    Note over I3: coalesce — at most<br/>1 event / 250ms
+    I3->>R: ZREVRANGE leaderboard 0 9
+    R-->>I3: top 10
+    I3-->>V: event: leaderboard

@@ -1,0 +1,192 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   One scale, defined once. Everything downstream references these, so a theme
+   change is a change here and nowhere else.
+   ------------------------------------------------------------------------ */
+@theme {
+  --font-sans: 'Inter var', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Brand — a deep violet that reads as "finance" without the usual crypto neon. */
+  --color-brand-50: oklch(0.97 0.02 292);
+  --color-brand-100: oklch(0.94 0.04 292);
+  --color-brand-200: oklch(0.89 0.07 292);
+  --color-brand-300: oklch(0.81 0.11 292);
+  --color-brand-400: oklch(0.72 0.16 292);
+  --color-brand-500: oklch(0.63 0.20 292);
+  --color-brand-600: oklch(0.55 0.22 292);
+  --color-brand-700: oklch(0.47 0.20 292);
+  --color-brand-800: oklch(0.39 0.16 292);
+  --color-brand-900: oklch(0.31 0.12 292);
+
+  --color-accent-400: oklch(0.78 0.15 195);
+  --color-accent-500: oklch(0.70 0.16 195);
+
+  --color-success-400: oklch(0.78 0.16 155);
+  --color-success-500: oklch(0.68 0.17 155);
+  --color-warning-400: oklch(0.82 0.15 80);
+  --color-danger-400: oklch(0.72 0.19 25);
+  --color-danger-500: oklch(0.62 0.21 25);
+
+  --radius-card: 1.5rem;
+  --radius-panel: 1.25rem;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Semantic surface tokens
+   Components never name a raw colour — they name a role. That is what makes the
+   dark theme a token swap rather than a hunt through every component.
+   ------------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --surface-page: oklch(0.98 0.005 292);
+  --surface-card: oklch(1 0 0);
+  --surface-panel: oklch(0.97 0.006 292);
+  --surface-panel-hover: oklch(0.95 0.01 292);
+  --surface-overlay: oklch(1 0 0);
+  --border-subtle: oklch(0.91 0.008 292);
+  --border-strong: oklch(0.85 0.012 292);
+  --text-primary: oklch(0.22 0.02 292);
+  --text-secondary: oklch(0.52 0.015 292);
+  --text-tertiary: oklch(0.65 0.012 292);
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 292 / 0.04), 0 12px 32px -8px oklch(0.2 0.02 292 / 0.12);
+  --glow-a: oklch(0.63 0.20 292 / 0.18);
+  --glow-b: oklch(0.70 0.16 195 / 0.14);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-page: oklch(0.17 0.015 292);
+  --surface-card: oklch(0.22 0.018 292);
+  --surface-panel: oklch(0.26 0.02 292);
+  --surface-panel-hover: oklch(0.30 0.022 292);
+  --surface-overlay: oklch(0.24 0.02 292);
+  --border-subtle: oklch(0.32 0.02 292);
+  --border-strong: oklch(0.40 0.025 292);
+  --text-primary: oklch(0.97 0.005 292);
+  --text-secondary: oklch(0.72 0.015 292);
+  --text-tertiary: oklch(0.58 0.015 292);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3), 0 20px 48px -12px oklch(0 0 0 / 0.5);
+  --glow-a: oklch(0.63 0.20 292 / 0.35);
+  --glow-b: oklch(0.70 0.16 195 / 0.22);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-subtle);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--surface-page);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    min-height: 100dvh;
+  }
+
+  /* A visible focus ring, always. Removing it to "clean up" the design breaks
+     keyboard navigation for everyone who depends on it. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  /* Number inputs: strip the spinners, they are useless for token amounts. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
+  ::selection {
+    background: var(--color-brand-500);
+    color: white;
+  }
+}
+
+@layer components {
+  .surface-card {
+    background: var(--surface-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-panel {
+    background: var(--surface-panel);
+  }
+
+  /* The ambient background wash. Purely decorative, so it is aria-hidden in the
+     markup and disabled entirely under reduced-motion. */
+  .aurora::before,
+  .aurora::after {
+    content: '';
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  .aurora::before {
+    width: 34rem;
+    height: 34rem;
+    top: -12rem;
+    left: -10rem;
+    background: var(--glow-a);
+    animation: drift 22s var(--ease-out-quint) infinite alternate;
+  }
+
+  .aurora::after {
+    width: 28rem;
+    height: 28rem;
+    bottom: -10rem;
+    right: -8rem;
+    background: var(--glow-b);
+    animation: drift 28s var(--ease-out-quint) infinite alternate-reverse;
+  }
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(3rem, 2rem, 0) scale(1.12); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-panel);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--surface-panel-hover), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+/* Respect the user's motion preference — vestibular disorders are not an edge
+   case, and this is one media query. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

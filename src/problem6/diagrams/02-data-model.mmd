@@ -1,0 +1,18 @@
+erDiagram
+    USER ||--o{ SCORE_EVENT : "earns"
+    USER {
+        uuid id PK
+        string username
+        bigint score "denormalised running total"
+        timestamp updated_at
+    }
+    SCORE_EVENT {
+        uuid id PK
+        uuid user_id FK
+        int delta "always > 0"
+        string action_type
+        uuid action_token_id UK "single-use, enforced by unique index"
+        string idempotency_key UK "scoped to user"
+        bigint score_after "the total after applying this event"
+        timestamp created_at
+    }

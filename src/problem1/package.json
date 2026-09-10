@@ -1,0 +1,14 @@
+{
+  "name": "problem1-three-ways-to-sum-to-n",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Problem 1 — three unique JavaScript implementations of sum_to_n.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,61 @@
+### Problem 5 — a runnable request collection (VS Code REST Client / JetBrains HTTP Client)
+@host = http://localhost:3000
+@api = {{host}}/api/v1
+
+### Liveness
+GET {{host}}/health
+
+### Readiness (checks the database)
+GET {{host}}/ready
+
+### 1. Create a swap order
+# @name create
+POST {{api}}/swap-orders
+Content-Type: application/json
+
+{
+  "fromCurrency": "eth",
+  "toCurrency": "usdc",
+  "fromAmount": "1.5",
+  "rate": "2500",
+  "walletAddress": "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+  "note": "Created from requests.http"
+}
+
+@orderId = {{create.response.body.data.id}}
+
+### 2. List with filters
+GET {{api}}/swap-orders?status=PENDING&fromCurrency=ETH&minAmount=1&limit=5&sortBy=createdAt&sortOrder=desc
+
+### 2b. Free-text search
+GET {{api}}/swap-orders?q=requests.http
+
+### 3. Get one
+GET {{api}}/swap-orders/{{orderId}}
+
+### 4. Partial update
+PATCH {{api}}/swap-orders/{{orderId}}
+Content-Type: application/json
+
+{ "note": "Updated", "fromAmount": "2" }
+
+### 4b. Advance the status (PENDING -> CONFIRMED is legal)
+PATCH {{api}}/swap-orders/{{orderId}}
+Content-Type: application/json
+
+{ "status": "CONFIRMED" }
+
+### 4c. Illegal transition — expect 409
+PATCH {{api}}/swap-orders/{{orderId}}
+Content-Type: application/json
+
+{ "status": "PENDING" }
+
+### 5. Delete
+DELETE {{api}}/swap-orders/{{orderId}}
+
+### Validation failure — expect 422 with per-field details
+POST {{api}}/swap-orders
+Content-Type: application/json
+
+{ "fromCurrency": "ETH", "toCurrency": "ETH", "fromAmount": "-1", "rate": "0" }

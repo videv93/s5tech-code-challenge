@@ -1,0 +1,17 @@
+{
+  "name": "problem4-three-ways-to-sum-to-n",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Problem 4 — three unique TypeScript implementations of sum_to_n, with complexity analysis.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "bench": "vitest bench --run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

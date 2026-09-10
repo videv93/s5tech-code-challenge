@@ -1,0 +1,60 @@
+// Prisma schema — Problem 5
+//
+// Provider is SQLite by default so the service runs with zero external
+// infrastructure (`npm run db:migrate` creates a file and you are done). The
+// model uses no SQLite-specific features, so switching to PostgreSQL is a
+// two-line change documented in the README.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/db/generated"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// A currency swap order — the resource exposed by the CRUD interface.
+/// Chosen to line up with Problem 2's swap form, so the two halves of this
+/// submission describe the same domain.
+model SwapOrder {
+  id String @id @default(uuid())
+
+  /// Symbol being sold, e.g. "ETH". Stored uppercase.
+  fromCurrency String
+  /// Symbol being bought, e.g. "USDC". Stored uppercase.
+  toCurrency String
+
+  /// Amount of `fromCurrency` sold. Stored as a string-backed Decimal to avoid
+  /// binary floating point: 0.1 + 0.2 !== 0.3 is not acceptable for money.
+  fromAmount Decimal
+  /// Amount of `toCurrency` received, = fromAmount * rate.
+  toAmount Decimal
+  /// Exchange rate quoted at creation time, in toCurrency per fromCurrency.
+  rate Decimal
+
+  /// Destination wallet. Not a foreign key — users are out of scope here.
+  walletAddress String
+
+  status SwapOrderStatus @default(PENDING)
+
+  /// Free-form operator note. Nullable to exercise optional-field handling.
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes chosen to match the filters the list endpoint actually exposes,
+  // rather than indexing every column on principle.
+  @@index([status, createdAt])
+  @@index([fromCurrency, toCurrency])
+  @@index([walletAddress])
+  @@map("swap_orders")
+}
+
+enum SwapOrderStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}

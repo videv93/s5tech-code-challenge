@@ -1,0 +1,32 @@
+# Optional: brings up PostgreSQL for anyone who would rather not run on SQLite.
+# See the README's "Switching to PostgreSQL" section for the two file changes.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: swap
+      POSTGRES_PASSWORD: swap
+      POSTGRES_DB: swap_orders
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U swap']
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://swap:swap@db:5432/swap_orders
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '3000:3000'
+
+volumes:
+  pgdata:
