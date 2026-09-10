@@ -44,8 +44,21 @@ export default function App() {
           </div>
         </main>
 
+        {/* Says exactly which parts are real. Balances are mocked and no funds
+            move, but a submitted swap is a genuine row in the Problem 5 service,
+            so the receipt links to a record that can be fetched back. */}
         <footer className="px-4 pb-6 text-center text-xs text-[var(--text-tertiary)]">
-          Demo build — balances and settlement are simulated. Prices from{' '}
+          Demo build — balances are simulated and no funds move, but each swap is
+          recorded by a{' '}
+          <a
+            href="https://api.duelcode.online/docs"
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-[var(--text-secondary)]"
+          >
+            live API
+          </a>
+          . Prices from{' '}
           <a
             href="https://interview.switcheo.com/prices.json"
             target="_blank"

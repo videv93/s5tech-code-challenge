@@ -1,16 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { renderWithProviders } from '@/test/render';
-import { server } from '@/test/server';
+import { server, swapOrderResponse } from '@/test/server';
+import { API_BASE_URL } from '@/lib/api';
 import { PRICES_URL } from '@/lib/tokens';
 import { SwapCard } from './SwapCard';
-
-/** Settlement is randomised; pin it so the flow tests are deterministic. */
-function forceSwapOutcome(outcome: 'success' | 'failure') {
-  vi.spyOn(Math, 'random').mockReturnValue(outcome === 'success' ? 0.9 : 0.01);
-}
 
 async function renderReady() {
   const user = userEvent.setup();
@@ -225,7 +221,17 @@ describe('the token picker', () => {
 
 describe('submitting', () => {
   it('shows a busy state, then a receipt with the exact amounts', async () => {
-    forceSwapOutcome('success');
+    // The default handler answers instantly, so the busy state would flash past
+    // before it could be asserted. A short, explicit delay makes the in-flight
+    // window deterministic rather than racing the event loop.
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/swap-orders`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, string>;
+        await delay(120);
+        return HttpResponse.json(swapOrderResponse(body), { status: 201 });
+      }),
+    );
+
     const { user } = await renderReady();
 
     await user.type(screen.getByLabelText(/you pay amount/i), '1');
@@ -237,21 +243,79 @@ describe('submitting', () => {
       'true',
     );
 
-    expect(await screen.findByText(/swap complete/i, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/order submitted/i, {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText(/make another swap/i)).toBeInTheDocument();
   }, 10_000);
 
-  it('reports a failed settlement without clearing the form', async () => {
-    forceSwapOutcome('failure');
-    const { user } = await renderReady();
+  it('sends the server only what it should derive nothing from', async () => {
+    let submitted: Record<string, unknown> = {};
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/swap-orders`, async ({ request }) => {
+        submitted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(swapOrderResponse(submitted as Record<string, string>), {
+          status: 201,
+        });
+      }),
+    );
 
+    const { user } = await renderReady();
+    await user.type(screen.getByLabelText(/you pay amount/i), '1');
+    await user.click(await screen.findByRole('button', { name: /swap eth for usdc/i }));
+    await screen.findByText(/order submitted/i, {}, { timeout: 5000 });
+
+    // toAmount is the server's to compute — sending it would let the client
+    // submit an internally inconsistent order.
+    expect(submitted['toAmount']).toBeUndefined();
+    expect(submitted).toMatchObject({ fromCurrency: 'ETH', toCurrency: 'USDC', fromAmount: '1' });
+    // Never exponential notation: the API's validator rejects it.
+    expect(String(submitted['rate'])).not.toMatch(/e/i);
+  }, 10_000);
+
+  it('shows the order id from the response, so the receipt is checkable', async () => {
+    const { user } = await renderReady();
+    await user.type(screen.getByLabelText(/you pay amount/i), '1');
+    await user.click(await screen.findByRole('button', { name: /swap eth for usdc/i }));
+
+    await screen.findByText(/order submitted/i, {}, { timeout: 5000 });
+    const link = screen.getByRole('link', { name: /3f1e0e2c/i });
+    expect(link).toHaveAttribute('href', expect.stringContaining('/api/v1/swap-orders/'));
+  }, 10_000);
+
+  it('surfaces the service\'s own error message without clearing the form', async () => {
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/swap-orders`, () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'The request body or query failed validation',
+              requestId: 'req-123',
+            },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    const { user } = await renderReady();
+    await user.type(screen.getByLabelText(/you pay amount/i), '1');
+    await user.click(await screen.findByRole('button', { name: /swap eth for usdc/i }));
+
+    expect(await screen.findByText(/failed validation/i, {}, { timeout: 5000 })).toBeInTheDocument();
+    // The amount survives, so the user can correct and resubmit.
+    expect(screen.getByLabelText(/you pay amount/i)).toHaveValue('1');
+  }, 10_000);
+
+  it('says the funds are safe when the service is unreachable', async () => {
+    server.use(http.post(`${API_BASE_URL}/api/v1/swap-orders`, () => HttpResponse.error()));
+
+    const { user } = await renderReady();
     await user.type(screen.getByLabelText(/you pay amount/i), '1');
     await user.click(await screen.findByRole('button', { name: /swap eth for usdc/i }));
 
     expect(
       await screen.findByText(/your funds were not moved/i, {}, { timeout: 5000 }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/you pay amount/i)).toHaveValue('1');
   }, 10_000);
 
   it('cannot be submitted with an empty amount', async () => {

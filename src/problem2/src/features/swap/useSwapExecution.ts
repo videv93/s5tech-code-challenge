@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
-import { sleep } from '@/lib/utils';
+import { ApiError, createSwapOrder, toDecimalString, type SwapOrder } from '@/lib/api';
 import type { Token } from '@/lib/tokens';
+import { walletAddress } from '@/lib/wallet';
 import type { CompletedSwap } from './SwapReceipt';
 
 export interface SwapRequest {
@@ -11,39 +12,52 @@ export interface SwapRequest {
   usdValue: number;
 }
 
-function randomHash(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return `0x${[...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
 /**
- * Simulated settlement. The brief explicitly permits mocking the backend, so
- * this models the parts that change the UI rather than pretending to be a chain:
- * a realistic delay, a resolved transaction hash, and a failure path.
+ * Submits the swap to the Problem 5 service — the same domain, so this is a real
+ * order rather than a simulated one. The resulting row is retrievable at
+ * `GET /api/v1/swap-orders/:id`, which is what makes the receipt verifiable.
  *
- * The occasional failure is deliberate. A form that has only ever been seen
- * succeeding has an untested error state, and that error state is what a user
- * meets on their worst day.
+ * Settlement itself is still notional: the service records the order as PENDING
+ * and no funds move. That is the honest boundary — the API call is real, the
+ * blockchain leg is not, and the UI says so rather than implying otherwise.
  */
 export function useSwapExecution(onSuccess: (swap: CompletedSwap) => void) {
   return useMutation<CompletedSwap, Error, SwapRequest>({
     mutationFn: async (request) => {
-      await sleep(1400 + Math.random() * 700);
-
-      if (Math.random() < 0.12) {
-        throw new Error('The network rejected this swap. Your funds were not moved.');
+      const rate = toDecimalString(request.from.price / request.to.price);
+      if (rate === null) {
+        throw new ApiError(
+          'UNQUOTABLE_PAIR',
+          'This pair cannot be quoted at the current prices.',
+          0,
+        );
       }
+
+      const order: SwapOrder = await createSwapOrder({
+        fromCurrency: request.from.symbol,
+        toCurrency: request.to.symbol,
+        fromAmount: request.amountIn,
+        rate,
+        walletAddress,
+        note: `Swap from the web client`,
+      });
 
       return {
         from: request.from,
         to: request.to,
-        amountIn: request.amountIn,
-        amountOut: request.amountOut,
+        // The server's figures, not the client's: `toAmount` is derived
+        // server-side, so showing the response is what the record actually says.
+        amountIn: order.fromAmount,
+        amountOut: order.toAmount,
         usdValue: request.usdValue,
-        transactionHash: randomHash(),
-        completedAt: new Date().toISOString(),
+        orderId: order.id,
+        status: order.status,
+        completedAt: order.createdAt,
       };
     },
+    // A failed submission is not retried automatically: the user should decide
+    // whether to resubmit something that moves money.
+    retry: false,
     onSuccess,
   });
 }

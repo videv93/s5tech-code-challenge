@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowRight, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { TokenIcon } from '@/components/TokenIcon';
+import { orderUrl } from '@/lib/api';
 import { formatTokenAmount, formatUsd, truncateAddress } from '@/lib/format';
 import type { Token } from '@/lib/tokens';
 import { walletAddress } from '@/lib/wallet';
@@ -12,7 +13,9 @@ export interface CompletedSwap {
   amountIn: string;
   amountOut: string;
   usdValue: number;
-  transactionHash: string;
+  /** Identifier of the row created by the API — the receipt is verifiable. */
+  orderId: string;
+  status: 'PENDING' | 'CONFIRMED' | 'FAILED' | 'CANCELLED';
   completedAt: string;
 }
 
@@ -38,9 +41,9 @@ export function SwapReceipt({ swap, onDismiss }: SwapReceiptProps) {
                 <Check aria-hidden className="size-7 text-[var(--color-success-500)]" strokeWidth={3} />
               </div>
 
-              <Dialog.Title className="mt-4 text-lg font-semibold">Swap complete</Dialog.Title>
+              <Dialog.Title className="mt-4 text-lg font-semibold">Order submitted</Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-[var(--text-secondary)]">
-                {formatUsd(swap.usdValue)} swapped successfully.
+                {formatUsd(swap.usdValue)} recorded by the swap service.
               </Dialog.Description>
 
               <div className="mt-5 flex items-center justify-center gap-3 rounded-[var(--radius-panel)] bg-[var(--surface-panel)] p-4">
@@ -67,10 +70,23 @@ export function SwapReceipt({ swap, onDismiss }: SwapReceiptProps) {
                   <dd className="font-medium tabular-nums">{truncateAddress(walletAddress)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--text-secondary)]">Transaction</dt>
-                  <dd className="flex items-center gap-1 font-medium tabular-nums">
-                    {truncateAddress(swap.transactionHash, 8, 6)}
-                    <ExternalLink aria-hidden className="size-3 text-[var(--text-tertiary)]" />
+                  <dt className="text-[var(--text-secondary)]">Status</dt>
+                  <dd className="font-medium">{swap.status}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-[var(--text-secondary)]">Order</dt>
+                  <dd>
+                    {/* The receipt is checkable: this resolves to the real
+                        record in the Problem 5 service. */}
+                    <a
+                      href={orderUrl(swap.orderId)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 font-medium tabular-nums underline decoration-dotted underline-offset-2"
+                    >
+                      {truncateAddress(swap.orderId, 8, 6)}
+                      <ExternalLink aria-hidden className="size-3 text-[var(--text-tertiary)]" />
+                    </a>
                   </dd>
                 </div>
               </dl>
